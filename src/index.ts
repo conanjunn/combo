@@ -1,7 +1,14 @@
 import { SeedRandom } from './utils';
 import { BallTypes } from './values';
+import { px } from './utils';
 
 const random = new SeedRandom('abcd');
+const canvas = document.getElementById('cvs') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+canvas.width = document.body.clientWidth;
+canvas.height = document.body.clientHeight;
+
+px.init(canvas);
 
 interface Ball {
   type: number;
@@ -12,7 +19,7 @@ interface Ball {
 
 const arr: Ball[][] = [];
 
-for (let index = 0; index < 6; index++) {
+for (let index = 0; index < 5; index++) {
   arr.push([]);
   for (let j = 0; j < 6; j++) {
     arr[index].push({
@@ -75,24 +82,32 @@ for (let colIndex = 0; colIndex < arr[0].length; colIndex++) {
   }
 }
 
-const canvas = document.getElementById('cvs') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-
 ctx.lineWidth = 1;
 ctx.strokeStyle = 'white';
-ctx.font = '20px serif';
+ctx.font = `${px.toPx(30)}px serif`;
+const radius: number = px.toPx(750 / 6 / 2);
 
 for (let rowIndex = 0; rowIndex < arr.length; rowIndex++) {
   for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
     ctx.beginPath();
     ctx.fillStyle = BallTypes[arr[rowIndex][colIndex].type];
-    ctx.arc(colIndex * 40 + 21, rowIndex * 40 + 21, 20, 0, 2 * Math.PI);
+    ctx.arc(
+      colIndex * radius * 2 + radius,
+      rowIndex * radius * 2 + radius,
+      radius,
+      0,
+      2 * Math.PI
+    );
     ctx.fill();
     ctx.stroke();
     ctx.strokeText(
       arr[rowIndex][colIndex].isComplete ? '1' : '',
-      colIndex * 40 + 21,
-      rowIndex * 40 + 21
+      colIndex * radius * 2 + radius,
+      rowIndex * radius * 2 + radius
     );
   }
 }
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+});

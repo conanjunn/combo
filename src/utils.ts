@@ -28,3 +28,17 @@ export class SeedRandom {
     return ret;
   }
 }
+
+class UnitPx {
+  constructor() {}
+  private maxWidth: number = 0;
+  init(canvas: HTMLCanvasElement) {
+    this.maxWidth = canvas.width;
+  }
+  toPx(px: number) {
+    const preW = this.maxWidth / 100;
+    return Math.floor((px / 7.5) * preW);
+  }
+}
+
+export const px = new UnitPx();
