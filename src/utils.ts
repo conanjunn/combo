@@ -42,3 +42,22 @@ class UnitPx {
 }
 
 export const px = new UnitPx();
+
+export class Animate {
+  private duration: number = 0;
+  private from: number[] = [];
+  private to: number[] = [];
+  private timeCounter: number = 0;
+  private diff: number = 0;
+  private step: number = 0;
+  constructor(from: number[], to: number[], duration: number) {
+    this.duration = duration;
+    this.from = from;
+    this.to = to;
+    // this.diff = to - from;
+    this.step = this.diff / this.duration;
+  }
+  update(deltaTime: number) {
+    // this.from += this.step * deltaTime
+  }
+}

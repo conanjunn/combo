@@ -12,10 +12,11 @@ interface Ball {
 
 export class Balls {
   private arr: Ball[][] = [];
-  private userSelected: number[] = [];
-  private touchStartPos: number[] = [];
+  private colliderIndex: number[] = [];
+  private touchPos: number[] = [];
   private radius: number = px.toPx(750 / 6 / 2);
   private renderFn: Tick;
+  private userSelectedBall: Ball | null = null;
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -47,13 +48,10 @@ export class Balls {
 
     for (let rowIndex = 0; rowIndex < arr.length; rowIndex++) {
       for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
-        ctx.fillStyle = BallTypes[arr[rowIndex][colIndex].type];
-        if (
-          this.userSelected.length &&
-          this.userSelected[1] === rowIndex &&
-          this.userSelected[0] === colIndex
-        ) {
-          ctx.fillStyle = BallTypesOpacity[arr[rowIndex][colIndex].type];
+        const ball = arr[rowIndex][colIndex];
+        ctx.fillStyle = BallTypes[ball.type];
+        if (this.userSelectedBall == ball) {
+          ctx.fillStyle = BallTypesOpacity[ball.type];
         }
 
         this.drawBall(
@@ -61,17 +59,18 @@ export class Balls {
           rowIndex * radius * 2 + radius
         );
 
-        // if (this.userSelected[0] === -2) {
-        //   ctx.strokeText(
-        //     arr[rowIndex][colIndex].isComplete ? '1' : '',
-        //     colIndex * radius * 2 + radius,
-        //     rowIndex * radius * 2 + radius
-        //   );
-        // }
+        if (ball.isComplete) {
+          ctx.strokeText(
+            ball.isComplete ? '1' : '',
+            colIndex * radius * 2 + radius,
+            rowIndex * radius * 2 + radius
+          );
+        }
       }
     }
-    if (this.touchStartPos.length) {
-      this.drawBall(this.touchStartPos[0], this.touchStartPos[1]);
+    if (this.touchPos.length && this.userSelectedBall) {
+      ctx.fillStyle = BallTypesOpacity[this.userSelectedBall.type];
+      this.drawBall(this.touchPos[0], this.touchPos[1]);
     }
   }
   private drawBall(x: number, y: number) {
@@ -89,10 +88,11 @@ export class Balls {
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
 
-      const xPos = Math.floor(x / (this.radius * 2));
-      const yPos = Math.floor(y / (this.radius * 2));
-      this.userSelected = [xPos, yPos];
-      this.touchStartPos = [x, y];
+      const xIndex = Math.floor(x / (this.radius * 2));
+      const yIndex = Math.floor(y / (this.radius * 2));
+      this.colliderIndex = [xIndex, yIndex];
+      this.touchPos = [x, y];
+      this.userSelectedBall = this.arr[yIndex][xIndex];
     });
 
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
@@ -100,15 +100,32 @@ export class Balls {
       e.preventDefault();
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
+      this.touchPos = [x, y];
 
-      this.touchStartPos = [x, y];
+      const xIndex = Math.floor(x / (this.radius * 2));
+      const yIndex = Math.floor(y / (this.radius * 2));
+      if (
+        this.colliderIndex[0] !== xIndex ||
+        this.colliderIndex[1] !== yIndex
+      ) {
+        // TODO: 判断是否是相邻的两个
+        const tmp = this.arr[this.colliderIndex[1]][this.colliderIndex[0]];
+        this.arr[this.colliderIndex[1]][this.colliderIndex[0]] = this.arr[
+          yIndex
+        ][xIndex];
+        this.arr[yIndex][xIndex] = tmp;
+        this.colliderIndex = [xIndex, yIndex];
+      }
     });
 
     const endEventHandler = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      this.userSelected = [];
-      this.touchStartPos = [];
+      this.colliderIndex = [];
+      this.touchPos = [];
+      this.userSelectedBall = null;
+      this.horizontalCheck();
+      this.verticalCheck();
     };
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
