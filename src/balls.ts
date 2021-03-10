@@ -1,7 +1,9 @@
 import { engine, Tick } from './engine';
-import { px, SeedRandom } from './utils';
+import { AnimateCurve, px, SeedRandom } from './utils';
 import { BallTypes, BallTypesOpacity } from './values';
 import { world } from './world';
+
+const animate = new AnimateCurve(px.toPx(750 / 6 / 2), 0.2);
 
 interface Ball {
   type: number;
@@ -35,7 +37,19 @@ export class Balls {
     this.event();
     this.renderFn = this.render.bind(this);
 
-    engine.addTick(this.renderFn);
+    // engine.addTick(this.renderFn);
+    setTimeout(() => {
+      const ctx = world.ctx;
+      ctx.strokeStyle = 'red';
+      engine.addTick((deltaTime) => {
+        const pos = animate.getPos();
+        // if (pos[0] <= 0 && pos[1] <= 0) {
+        //   return;
+        // }
+        this.drawBall(pos[0] + 100, pos[1] + 100);
+        animate.update(deltaTime);
+      });
+    }, 2000);
   }
   private render() {
     const ctx = world.ctx;

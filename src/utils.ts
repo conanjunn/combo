@@ -43,21 +43,68 @@ class UnitPx {
 
 export const px = new UnitPx();
 
-export class Animate {
-  private duration: number = 0;
+export class AnimateLinear {
   private from: number[] = [];
+  private step: number[] = [];
   private to: number[] = [];
-  private timeCounter: number = 0;
-  private diff: number = 0;
-  private step: number = 0;
-  constructor(from: number[], to: number[], duration: number) {
-    this.duration = duration;
+  private onComplete: { (): void } = () => {};
+  private isCompleted: boolean = false;
+  constructor(
+    from: number[],
+    to: number[],
+    duration: number,
+    onComplete?: { (): void }
+  ) {
     this.from = from;
     this.to = to;
-    // this.diff = to - from;
-    this.step = this.diff / this.duration;
+    const diff: number[] = [to[0] - this.from[0], to[1] - this.from[1]];
+    this.step = [diff[0] / duration, diff[1] / duration];
+    if (onComplete) {
+      this.onComplete = onComplete;
+    }
   }
   update(deltaTime: number) {
-    // this.from += this.step * deltaTime
+    if (this.isCompleted) {
+      return;
+    }
+    this.from[0] = this.from[0] + this.step[0] * deltaTime;
+    this.from[1] = this.from[1] + this.step[1] * deltaTime;
+    if (this.from[0] > this.to[0]) {
+      this.from[0] = this.to[0];
+    }
+    if (this.from[1] > this.to[1]) {
+      this.from[1] = this.to[1];
+    }
+    if (this.from[1] === this.to[1] && this.from[0] === this.to[0]) {
+      this.isCompleted = true;
+      this.onComplete();
+    }
+  }
+  getPos(): ReadonlyArray<number> {
+    return this.from;
   }
 }
+
+export class AnimateCurve extends AnimateLinear {
+  private radius: number;
+  constructor(radius: number, duration: number) {
+    super([0, 0], [180, 0], duration);
+    this.radius = radius;
+  }
+  getPos(): ReadonlyArray<number> {
+    const [deg] = super.getPos();
+    const rad = deg2rad(deg);
+    const x = Math.sin(rad) * this.radius;
+    const y = Math.cos(rad) * this.radius;
+
+    return [Math.floor(x), Math.floor(y)];
+  }
+}
+
+export const deg2rad = (deg: number): number => {
+  return (Math.PI / 180) * deg;
+};
+
+export const rad2deg = (rad: number): number => {
+  return (rad / Math.PI) * 180;
+};
