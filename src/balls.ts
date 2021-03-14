@@ -65,12 +65,13 @@ export class Balls {
         }
 
         if (ball.animate) {
-          ball.animate.update(deltaTime);
           const pos = ball.animate.getPos();
+
           this.drawBall(
-            pos[1] + (colIndex * radius * 2),
-            pos[0] + (rowIndex * radius * 2 + radius)
+            pos[0] + (colIndex * radius * 2 + radius * 2),
+            pos[1] + (rowIndex * radius * 2 + radius)
           );
+          ball.animate.update(deltaTime);
         } else {
           this.drawBall(
             colIndex * radius * 2 + radius,
@@ -107,11 +108,11 @@ export class Balls {
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
 
-      const xIndex = Math.floor(x / (this.radius * 2));
-      const yIndex = Math.floor(y / (this.radius * 2));
-      this.colliderIndex = [xIndex, yIndex];
+      const colIndex = Math.floor(x / (this.radius * 2));
+      const rowIndex = Math.floor(y / (this.radius * 2));
+      this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
-      this.userSelectedBall = this.arr[yIndex][xIndex];
+      this.userSelectedBall = this.arr[rowIndex][colIndex];
     });
 
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
@@ -121,19 +122,19 @@ export class Balls {
       const y: number = e.touches[0].pageY;
       this.touchPos = [x, y];
 
-      const xIndex = Math.floor(x / (this.radius * 2));
-      const yIndex = Math.floor(y / (this.radius * 2));
+      const colIndex = Math.floor(x / (this.radius * 2));
+      const rowIndex = Math.floor(y / (this.radius * 2));
       if (
-        this.colliderIndex[0] !== xIndex ||
-        this.colliderIndex[1] !== yIndex
+        this.colliderIndex[0] !== rowIndex ||
+        this.colliderIndex[1] !== colIndex
       ) {
         // TODO: 判断是否是相邻的两个
-        const tmp = this.arr[this.colliderIndex[1]][this.colliderIndex[0]];
-        if (!this.arr[yIndex][xIndex].animate) {
-          this.arr[yIndex][xIndex].animate = new AnimateCurve(
+        const tmp = this.arr[this.colliderIndex[0]][this.colliderIndex[1]];
+        if (!this.arr[rowIndex][colIndex].animate) {
+          this.arr[rowIndex][colIndex].animate = new AnimateCurve(
             1,
             this.radius,
-            .2
+            0.2
           );
         }
 
