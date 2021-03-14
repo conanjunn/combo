@@ -3,13 +3,12 @@ import { AnimateCurve, px, SeedRandom } from './utils';
 import { BallTypes, BallTypesOpacity } from './values';
 import { world } from './world';
 
-const animate = new AnimateCurve(px.toPx(750 / 6 / 2), 0.2);
-
 interface Ball {
   type: number;
   row: number;
   column: number;
   isComplete: boolean;
+  animate: AnimateCurve | null;
 }
 
 export class Balls {
@@ -30,6 +29,7 @@ export class Balls {
           row: index,
           column: j,
           isComplete: false,
+          animate: null,
         });
       }
     }
@@ -37,21 +37,17 @@ export class Balls {
     this.event();
     this.renderFn = this.render.bind(this);
 
-    // engine.addTick(this.renderFn);
-    setTimeout(() => {
-      const ctx = world.ctx;
-      ctx.strokeStyle = 'red';
-      engine.addTick((deltaTime) => {
-        const pos = animate.getPos();
-        // if (pos[0] <= 0 && pos[1] <= 0) {
-        //   return;
-        // }
-        this.drawBall(pos[0] + 100, pos[1] + 100);
-        animate.update(deltaTime);
-      });
-    }, 2000);
+    engine.addTick(this.renderFn);
+
+    const ctx = world.ctx;
+    ctx.strokeStyle = 'red';
+    // engine.addTick((deltaTime) => {
+    //   // if (pos[0] <= 0 && pos[1] <= 0) {
+    //   //   return;
+    //   // }
+    // });
   }
-  private render() {
+  private render(deltaTime: number) {
     const ctx = world.ctx;
     const arr = this.arr;
     const radius = this.radius;
@@ -68,10 +64,19 @@ export class Balls {
           ctx.fillStyle = BallTypesOpacity[ball.type];
         }
 
-        this.drawBall(
-          colIndex * radius * 2 + radius,
-          rowIndex * radius * 2 + radius
-        );
+        if (ball.animate) {
+          ball.animate.update(deltaTime);
+          const pos = ball.animate.getPos();
+          this.drawBall(
+            pos[1] + (colIndex * radius * 2),
+            pos[0] + (rowIndex * radius * 2 + radius)
+          );
+        } else {
+          this.drawBall(
+            colIndex * radius * 2 + radius,
+            rowIndex * radius * 2 + radius
+          );
+        }
 
         if (ball.isComplete) {
           ctx.strokeText(
@@ -124,11 +129,19 @@ export class Balls {
       ) {
         // TODO: 判断是否是相邻的两个
         const tmp = this.arr[this.colliderIndex[1]][this.colliderIndex[0]];
-        this.arr[this.colliderIndex[1]][this.colliderIndex[0]] = this.arr[
-          yIndex
-        ][xIndex];
-        this.arr[yIndex][xIndex] = tmp;
-        this.colliderIndex = [xIndex, yIndex];
+        if (!this.arr[yIndex][xIndex].animate) {
+          this.arr[yIndex][xIndex].animate = new AnimateCurve(
+            1,
+            this.radius,
+            .2
+          );
+        }
+
+        // this.arr[this.colliderIndex[1]][this.colliderIndex[0]] = this.arr[
+        //   yIndex
+        // ][xIndex];
+        // this.arr[yIndex][xIndex] = tmp;
+        // this.colliderIndex = [xIndex, yIndex];
       }
     });
 

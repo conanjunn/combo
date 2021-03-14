@@ -87,12 +87,13 @@ export class AnimateLinear {
 
 export class AnimateCurve extends AnimateLinear {
   private radius: number;
-  constructor(radius: number, duration: number) {
-    super([0, 0], [180, 0], duration);
+  constructor(direction: number, radius: number, duration: number) {
+    super([0, 0], [180 * direction, 0], duration);
     this.radius = radius;
   }
   getPos(): ReadonlyArray<number> {
     const [deg] = super.getPos();
+
     const rad = deg2rad(deg);
     const x = Math.sin(rad) * this.radius;
     const y = Math.cos(rad) * this.radius;
