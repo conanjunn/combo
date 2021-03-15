@@ -18,6 +18,7 @@ export class Balls {
   private radius: number = px.toPx(750 / 6 / 2);
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
+  private prevBall: Ball | null = null;
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -113,6 +114,8 @@ export class Balls {
       this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
       this.userSelectedBall = this.arr[rowIndex][colIndex];
+
+      this.prevBall = this.userSelectedBall;
     });
 
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
@@ -130,13 +133,14 @@ export class Balls {
       ) {
         // TODO: 判断是否是相邻的两个
         const tmp = this.arr[this.colliderIndex[0]][this.colliderIndex[1]];
-        if (!this.arr[rowIndex][colIndex].animate) {
-          this.arr[rowIndex][colIndex].animate = new AnimateCurve(
-            1,
-            this.radius,
-            0.2
-          );
-        }
+        this.exchange(tmp, this.arr[rowIndex][colIndex]);
+        // if (!this.arr[rowIndex][colIndex].animate) {
+        //   this.arr[rowIndex][colIndex].animate = new AnimateCurve(
+        //     1,
+        //     this.radius,
+        //     0.2
+        //   );
+        // }
 
         // this.arr[this.colliderIndex[1]][this.colliderIndex[0]] = this.arr[
         //   yIndex
@@ -157,6 +161,19 @@ export class Balls {
     };
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
+  }
+  exchange(ball1: Ball, ball2: Ball) {
+    if (ball1.animate) {
+      return;
+    }
+    if (ball1.column > ball2.column) {
+      // ball1在ball2的右
+      ball1.animate = new AnimateCurve(1, this.radius, 0.2);
+      ball2.animate = new AnimateCurve(1, this.radius, 0.2);
+    }
+    if (ball1.row > ball2.row) {
+      // ball1在2的下面
+    }
   }
   private horizontalCheck() {
     const arr = this.arr;
