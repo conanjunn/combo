@@ -65,15 +65,13 @@ export class Balls {
           ctx.fillStyle = BallTypesOpacity[ball.type];
         }
 
-        if (ball.animate) {
-          const pos = ball.animate.getPos();
-
-          this.drawBall(
-            pos[0] + (colIndex * radius * 2 + radius * 2),
-            pos[1] + (rowIndex * radius * 2 + radius)
-          );
-          ball.animate.update(deltaTime);
-        } else {
+        const isAnimate = this.renderBallAnimate(
+          ball,
+          deltaTime,
+          colIndex,
+          rowIndex
+        );
+        if (!isAnimate) {
           this.drawBall(
             colIndex * radius * 2 + radius,
             rowIndex * radius * 2 + radius
@@ -93,6 +91,41 @@ export class Balls {
       ctx.fillStyle = BallTypesOpacity[this.userSelectedBall.type];
       this.drawBall(this.touchPos[0], this.touchPos[1]);
     }
+  }
+  private renderBallAnimate(
+    ball: Ball,
+    deltaTime: number,
+    colIndex: number,
+    rowIndex: number
+  ): boolean {
+    if (!ball.animate) {
+      return false;
+    }
+    const radius = this.radius;
+    const pos = ball.animate.getPos();
+
+    switch (ball.animate.direction) {
+      case 'right':
+        this.drawBall(
+          pos[0] + (colIndex * radius * 2 + radius * 2),
+          pos[1] + (rowIndex * radius * 2 + radius)
+        );
+        break;
+
+      case 'left':
+        this.drawBall(
+          pos[0] + colIndex * radius * 2,
+          pos[1] + (rowIndex * radius * 2 + radius)
+        );
+        break;
+
+      default:
+        console.error('ball animate direction error', ball);
+        break;
+    }
+
+    ball.animate.update(deltaTime);
+    return true;
   }
   private drawBall(x: number, y: number) {
     const ctx = world.ctx;
@@ -168,8 +201,8 @@ export class Balls {
     }
     if (ball1.column > ball2.column) {
       // ball1在ball2的右
-      ball1.animate = new AnimateCurve(1, this.radius, 0.2);
-      ball2.animate = new AnimateCurve(1, this.radius, 0.2);
+      ball1.animate = new AnimateCurve('left', this.radius, 0.2);
+      ball2.animate = new AnimateCurve('right', this.radius, 0.2);
     }
     if (ball1.row > ball2.row) {
       // ball1在2的下面

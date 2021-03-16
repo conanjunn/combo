@@ -110,8 +110,17 @@ export class AnimateLinear {
 
 export class AnimateCurve extends AnimateLinear {
   private radius: number;
-  constructor(direction: number, radius: number, duration: number) {
-    super([180, 0], [360 * direction, 0], duration);
+  readonly direction: string;
+  constructor(direction: string, radius: number, duration: number) {
+    if (direction === 'left') {
+      super([0, 0], [180, 0], duration);
+    } else if (direction === 'right') {
+      super([180, 0], [360, 0], duration);
+    } else {
+      super([180, 0], [360, 0], duration);
+    }
+
+    this.direction = direction;
     this.radius = radius;
   }
   getPos(): ReadonlyArray<number> {
