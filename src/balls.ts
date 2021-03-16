@@ -111,6 +111,20 @@ export class Balls {
         );
         break;
 
+      case 'top':
+        this.drawBall(
+          pos[0] + colIndex * radius * 2 + radius,
+          pos[1] + rowIndex * radius * 2
+        );
+        break;
+
+      case 'bottom':
+        this.drawBall(
+          pos[0] + colIndex * radius * 2 + radius,
+          pos[1] + (rowIndex * radius * 2 + radius * 2)
+        );
+        break;
+
       default:
         console.error('ball animate direction error', ball);
         break;
@@ -204,16 +218,21 @@ export class Balls {
   exchange() {
     const ball1 = this.trail[0];
     const ball2 = this.trail[1];
-    if (ball1.animate) {
+    if (ball1.animate || ball2.animate) {
       return;
     }
     if (ball1.column > ball2.column) {
       // ball1在ball2的右
-      ball1.animate = new AnimateCurve('left', this.radius, 0.07);
-      ball2.animate = new AnimateCurve('right', this.radius, 0.07);
-    }
-    if (ball1.row > ball2.row) {
+      ball1.animate = new AnimateCurve('left', this.radius, 0.05);
+      ball2.animate = new AnimateCurve('right', this.radius, 0.05);
+    } else if (ball1.column < ball2.column) {
+      ball1.animate = new AnimateCurve('right', this.radius, 0.05);
+      ball2.animate = new AnimateCurve('left', this.radius, 0.05);
+    } else if (ball1.row > ball2.row) {
       // ball1在2的下面
+      ball1.animate = new AnimateCurve('top', this.radius, 1);
+      ball2.animate = new AnimateCurve('bottom', this.radius, 1);
+    } else if (ball1.row < ball2.row) {
     }
   }
   private horizontalCheck() {

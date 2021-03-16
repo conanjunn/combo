@@ -90,13 +90,25 @@ export class AnimateLinear {
     if (this.isCompleted) {
       return;
     }
+
     this.from[0] = this.from[0] + this.step[0] * this.compute[0] * deltaTime;
     this.from[1] = this.from[1] + this.step[1] * this.compute[1] * deltaTime;
-    if (this.from[0] > this.to[0]) {
-      this.from[0] = this.to[0];
-    }
-    if (this.from[1] > this.to[1]) {
-      this.from[1] = this.to[1];
+
+    // TODO
+    if (this.compute[0] > 0) {
+      if (this.from[0] > this.to[0]) {
+        this.from[0] = this.to[0];
+      }
+      if (this.from[1] > this.to[1]) {
+        this.from[1] = this.to[1];
+      }
+    } else {
+      if (this.from[0] < this.to[0]) {
+        this.from[0] = this.to[0];
+      }
+      if (this.from[1] < this.to[1]) {
+        this.from[1] = this.to[1];
+      }
     }
     if (this.from[1] === this.to[1] && this.from[0] === this.to[0]) {
       this.isCompleted = true;
@@ -116,8 +128,10 @@ export class AnimateCurve extends AnimateLinear {
       super([0, 0], [180, 0], duration);
     } else if (direction === 'right') {
       super([180, 0], [360, 0], duration);
+    } else if (direction === 'top') {
+      super([90, 0], [270, 0], duration);
     } else {
-      super([180, 0], [360, 0], duration);
+      super([270, 0], [90, 0], duration);
     }
 
     this.direction = direction;
