@@ -18,7 +18,7 @@ export class Balls {
   private radius: number = px.toPx(750 / 6 / 2);
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
-  private prevBall: Ball | null = null;
+  private exchangingBalls: Ball[] = [];
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -87,6 +87,8 @@ export class Balls {
         }
       }
     }
+
+    // 绘制跟随手指移动的球
     if (this.touchPos.length && this.userSelectedBall) {
       ctx.fillStyle = BallTypesOpacity[this.userSelectedBall.type];
       this.drawBall(this.touchPos[0], this.touchPos[1]);
@@ -107,14 +109,14 @@ export class Balls {
     switch (ball.animate.direction) {
       case 'right':
         this.drawBall(
-          pos[0] + (colIndex * radius * 2 + radius * 2),
+          pos[0] + (colIndex * radius * 2 + radius * 2), // 已球的最右侧为原点
           pos[1] + (rowIndex * radius * 2 + radius)
         );
         break;
 
       case 'left':
         this.drawBall(
-          pos[0] + colIndex * radius * 2,
+          pos[0] + colIndex * radius * 2, // 已球的最左侧为原点
           pos[1] + (rowIndex * radius * 2 + radius)
         );
         break;
@@ -124,6 +126,27 @@ export class Balls {
         break;
     }
 
+    if (ball.animate.getIsCompleted()) {
+      // 动画已结束,交换源数组里的两个球的位置
+      const ball1 = this.exchangingBalls[0];
+      const ball2 = this.exchangingBalls[1];
+      this.arr[ball1.row][ball1.column] = ball2;
+      this.arr[ball2.row][ball2.column] = ball1;
+
+      const backupBall1: Ball = { ...ball1 };
+
+      ball1.row = ball2.row;
+      ball1.column = ball2.column;
+      ball1.animate = null;
+
+      ball2.row = backupBall1.row;
+      ball2.column = backupBall1.column;
+      ball2.animate = null;
+
+      this.colliderIndex = [ball1.row, ball1.column];
+
+      return false;
+    }
     ball.animate.update(deltaTime);
     return true;
   }
@@ -147,8 +170,6 @@ export class Balls {
       this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
       this.userSelectedBall = this.arr[rowIndex][colIndex];
-
-      this.prevBall = this.userSelectedBall;
     });
 
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
@@ -166,20 +187,8 @@ export class Balls {
       ) {
         // TODO: 判断是否是相邻的两个
         const tmp = this.arr[this.colliderIndex[0]][this.colliderIndex[1]];
-        this.exchange(tmp, this.arr[rowIndex][colIndex]);
-        // if (!this.arr[rowIndex][colIndex].animate) {
-        //   this.arr[rowIndex][colIndex].animate = new AnimateCurve(
-        //     1,
-        //     this.radius,
-        //     0.2
-        //   );
-        // }
-
-        // this.arr[this.colliderIndex[1]][this.colliderIndex[0]] = this.arr[
-        //   yIndex
-        // ][xIndex];
-        // this.arr[yIndex][xIndex] = tmp;
-        // this.colliderIndex = [xIndex, yIndex];
+        this.exchangingBalls = [tmp, this.arr[rowIndex][colIndex]];
+        this.exchange();
       }
     });
 
@@ -195,14 +204,16 @@ export class Balls {
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
   }
-  exchange(ball1: Ball, ball2: Ball) {
+  exchange() {
+    const ball1 = this.exchangingBalls[0];
+    const ball2 = this.exchangingBalls[1];
     if (ball1.animate) {
       return;
     }
     if (ball1.column > ball2.column) {
       // ball1在ball2的右
-      ball1.animate = new AnimateCurve('left', this.radius, 0.2);
-      ball2.animate = new AnimateCurve('right', this.radius, 0.2);
+      ball1.animate = new AnimateCurve('left', this.radius, 0.1);
+      ball2.animate = new AnimateCurve('right', this.radius, 0.1);
     }
     if (ball1.row > ball2.row) {
       // ball1在2的下面

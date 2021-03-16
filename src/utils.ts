@@ -48,7 +48,7 @@ export class AnimateLinear {
   private step: number[] = [];
   private to: number[] = [];
   private onComplete: { (): void } = () => {};
-  private isCompleted: boolean = false;
+  protected isCompleted: boolean = false;
   private compute: number[] = [];
   constructor(
     from: number[],
@@ -129,6 +129,9 @@ export class AnimateCurve extends AnimateLinear {
     const x = Math.cos(rad) * this.radius;
     const y = Math.sin(rad) * this.radius;
     return [Math.floor(x), Math.floor(y)];
+  }
+  getIsCompleted(): boolean {
+    return this.isCompleted;
   }
 }
 
