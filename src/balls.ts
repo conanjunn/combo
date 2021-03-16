@@ -18,7 +18,7 @@ export class Balls {
   private radius: number = px.toPx(750 / 6 / 2);
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
-  private exchangingBalls: Ball[] = [];
+  private trail: Ball[] = [];
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -42,11 +42,6 @@ export class Balls {
 
     const ctx = world.ctx;
     ctx.strokeStyle = 'red';
-    // engine.addTick((deltaTime) => {
-    //   // if (pos[0] <= 0 && pos[1] <= 0) {
-    //   //   return;
-    //   // }
-    // });
   }
   private render(deltaTime: number) {
     const ctx = world.ctx;
@@ -57,6 +52,11 @@ export class Balls {
     ctx.strokeStyle = 'white';
     ctx.font = `${px.toPx(30)}px serif`;
 
+    // 判断是否有需要交换位置的珠子
+    if (this.trail.length > 1) {
+      this.exchange();
+    }
+
     for (let rowIndex = 0; rowIndex < arr.length; rowIndex++) {
       for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
         const ball = arr[rowIndex][colIndex];
@@ -65,18 +65,7 @@ export class Balls {
           ctx.fillStyle = BallTypesOpacity[ball.type];
         }
 
-        const isAnimate = this.renderBallAnimate(
-          ball,
-          deltaTime,
-          colIndex,
-          rowIndex
-        );
-        if (!isAnimate) {
-          this.drawBall(
-            colIndex * radius * 2 + radius,
-            rowIndex * radius * 2 + radius
-          );
-        }
+        this.renderBallAnimate(ball, deltaTime);
 
         if (ball.isComplete) {
           ctx.strokeText(
@@ -94,18 +83,19 @@ export class Balls {
       this.drawBall(this.touchPos[0], this.touchPos[1]);
     }
   }
-  private renderBallAnimate(
-    ball: Ball,
-    deltaTime: number,
-    colIndex: number,
-    rowIndex: number
-  ): boolean {
-    if (!ball.animate) {
-      return false;
-    }
+  private renderBallAnimate(ball: Ball, deltaTime: number) {
     const radius = this.radius;
-    const pos = ball.animate.getPos();
+    const colIndex = ball.column;
+    const rowIndex = ball.row;
+    if (!ball.animate) {
+      this.drawBall(
+        colIndex * radius * 2 + radius,
+        rowIndex * radius * 2 + radius
+      );
+      return;
+    }
 
+    const pos = ball.animate.getPos();
     switch (ball.animate.direction) {
       case 'right':
         this.drawBall(
@@ -128,8 +118,8 @@ export class Balls {
 
     if (ball.animate.getIsCompleted()) {
       // 动画已结束,交换源数组里的两个球的位置
-      const ball1 = this.exchangingBalls[0];
-      const ball2 = this.exchangingBalls[1];
+      const ball1 = this.trail[0];
+      const ball2 = this.trail[1];
       this.arr[ball1.row][ball1.column] = ball2;
       this.arr[ball2.row][ball2.column] = ball1;
 
@@ -145,10 +135,12 @@ export class Balls {
 
       this.colliderIndex = [ball1.row, ball1.column];
 
-      return false;
+      this.trail = this.trail.filter((item, index) => {
+        return index !== 1;
+      });
+      return;
     }
     ball.animate.update(deltaTime);
-    return true;
   }
   private drawBall(x: number, y: number) {
     const ctx = world.ctx;
@@ -170,6 +162,7 @@ export class Balls {
       this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
       this.userSelectedBall = this.arr[rowIndex][colIndex];
+      this.trail.push(this.userSelectedBall);
     });
 
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
@@ -185,10 +178,14 @@ export class Balls {
         this.colliderIndex[0] !== rowIndex ||
         this.colliderIndex[1] !== colIndex
       ) {
-        // TODO: 判断是否是相邻的两个
-        const tmp = this.arr[this.colliderIndex[0]][this.colliderIndex[1]];
-        this.exchangingBalls = [tmp, this.arr[rowIndex][colIndex]];
-        this.exchange();
+        // TODO: 判断是否相邻
+        const target = this.arr[rowIndex][colIndex];
+        const isInTrail = this.trail.find((item) => {
+          return item === target;
+        });
+        if (!isInTrail) {
+          this.trail.push(target);
+        }
       }
     });
 
@@ -205,15 +202,15 @@ export class Balls {
     canvas.addEventListener('touchcancel', endEventHandler);
   }
   exchange() {
-    const ball1 = this.exchangingBalls[0];
-    const ball2 = this.exchangingBalls[1];
+    const ball1 = this.trail[0];
+    const ball2 = this.trail[1];
     if (ball1.animate) {
       return;
     }
     if (ball1.column > ball2.column) {
       // ball1在ball2的右
-      ball1.animate = new AnimateCurve('left', this.radius, 0.1);
-      ball2.animate = new AnimateCurve('right', this.radius, 0.1);
+      ball1.animate = new AnimateCurve('left', this.radius, 0.07);
+      ball2.animate = new AnimateCurve('right', this.radius, 0.07);
     }
     if (ball1.row > ball2.row) {
       // ball1在2的下面
