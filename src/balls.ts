@@ -1,6 +1,6 @@
 import { engine, Tick } from './engine';
 import { AnimateCurve, px, SeedRandom } from './utils';
-import { BallTypes, BallTypesOpacity } from './values';
+import { BallTypes, BallTypesOpacity, exchangeSpeed } from './values';
 import { world } from './world';
 
 interface Ball {
@@ -19,6 +19,7 @@ export class Balls {
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
   private trail: Ball[] = [];
+  private touchStatus: string = ''; // start move end
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -152,6 +153,10 @@ export class Balls {
       this.trail = this.trail.filter((item, index) => {
         return index !== 1;
       });
+
+      // 处理touchend比珠子交换动画早出发的情况
+      this.comboCheck();
+
       return;
     }
     ball.animate.update(deltaTime);
@@ -168,6 +173,8 @@ export class Balls {
     canvas.addEventListener('touchstart', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      this.touchStatus = 'start';
+
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
 
@@ -182,6 +189,8 @@ export class Balls {
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      this.touchStatus = 'move';
+
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
       this.touchPos = [x, y];
@@ -206,11 +215,10 @@ export class Balls {
     const endEventHandler = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      this.colliderIndex = [];
-      this.touchPos = [];
-      this.userSelectedBall = null;
-      this.horizontalCheck();
-      this.verticalCheck();
+
+      this.touchStatus = 'end';
+
+      this.comboCheck();
     };
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
@@ -223,16 +231,18 @@ export class Balls {
     }
     if (ball1.column > ball2.column) {
       // ball1在ball2的右
-      ball1.animate = new AnimateCurve('left', this.radius, 0.05);
-      ball2.animate = new AnimateCurve('right', this.radius, 0.05);
+      ball1.animate = new AnimateCurve('left', this.radius, exchangeSpeed);
+      ball2.animate = new AnimateCurve('right', this.radius, exchangeSpeed);
     } else if (ball1.column < ball2.column) {
-      ball1.animate = new AnimateCurve('right', this.radius, 0.05);
-      ball2.animate = new AnimateCurve('left', this.radius, 0.05);
+      ball1.animate = new AnimateCurve('right', this.radius, exchangeSpeed);
+      ball2.animate = new AnimateCurve('left', this.radius, exchangeSpeed);
     } else if (ball1.row > ball2.row) {
       // ball1在2的下面
-      ball1.animate = new AnimateCurve('top', this.radius, 1);
-      ball2.animate = new AnimateCurve('bottom', this.radius, 1);
+      ball1.animate = new AnimateCurve('top', this.radius, exchangeSpeed);
+      ball2.animate = new AnimateCurve('bottom', this.radius, exchangeSpeed);
     } else if (ball1.row < ball2.row) {
+      ball1.animate = new AnimateCurve('bottom', this.radius, exchangeSpeed);
+      ball2.animate = new AnimateCurve('top', this.radius, exchangeSpeed);
     }
   }
   private horizontalCheck() {
@@ -290,5 +300,15 @@ export class Balls {
         }
       }
     }
+  }
+  private comboCheck() {
+    if (this.touchStatus !== 'end' || this.trail.length > 1) {
+      return;
+    }
+    this.colliderIndex = [];
+    this.touchPos = [];
+    this.userSelectedBall = null;
+    this.horizontalCheck();
+    this.verticalCheck();
   }
 }

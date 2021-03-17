@@ -13,3 +13,5 @@ export const BallTypesOpacity: ReadonlyArray<string> = [
   'rgba(220, 21, 0, .5)',
   'rgba(3, 0, 0, .5)',
 ];
+
+export const exchangeSpeed: number = 0.05;
