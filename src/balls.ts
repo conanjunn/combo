@@ -1,10 +1,11 @@
 import { engine, Tick } from './engine';
-import { AnimateCurve, px, SeedRandom } from './utils';
+import { AnimateCurve, AnimateLinear, px, SeedRandom } from './utils';
 import {
   BallTypes,
   BallTypesOpacity,
   columnCount,
   exchangeSpeed,
+  removeAnimateSpeed,
   rowCount,
 } from './values';
 import { world } from './world';
@@ -15,17 +16,20 @@ interface Ball {
   column: number;
   isComplete: boolean;
   animate: AnimateCurve | null;
+  removeAnimate: AnimateLinear | null;
 }
 
 export class Balls {
   private arr: Ball[][] = [];
   private colliderIndex: number[] = [];
   private touchPos: number[] = [];
-  private radius: number = px.toPx(750 / 6 / 2);
+  private radius: number = px.toPx(750 / columnCount / 2);
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
   private trail: Ball[] = [];
   private touchStatus: string = ''; // start move end
+  private removeList: Ball[][] = [];
+  private removedList: Ball[] = [];
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -38,6 +42,7 @@ export class Balls {
           column: j,
           isComplete: false,
           animate: null,
+          removeAnimate: null,
         });
       }
     }
@@ -53,7 +58,6 @@ export class Balls {
   private render(deltaTime: number) {
     const ctx = world.ctx;
     const arr = this.arr;
-    const radius = this.radius;
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'white';
@@ -72,14 +76,17 @@ export class Balls {
           ctx.fillStyle = BallTypesOpacity[ball.type];
         }
 
-        this.renderBallAnimate(ball, deltaTime);
-
-        if (ball.isComplete) {
-          ctx.strokeText(
-            ball.isComplete ? '1' : '',
-            colIndex * radius * 2 + radius,
-            rowIndex * radius * 2 + radius
-          );
+        if (!ball.isComplete) {
+          this.renderExchangeAnimate(ball, deltaTime);
+        } else if (
+          this.removeList[0] &&
+          this.removeList[0].indexOf(ball) !== -1
+        ) {
+          // 这个珠子需要做消失的动画
+          this.renderRemoveAnimate(ball, deltaTime);
+        } else if (this.removedList.indexOf(ball) === -1) {
+          // 这个珠子需要做消失的动画，但目前还没轮到它，所以正常绘制
+          this.renderExchangeAnimate(ball, deltaTime);
         }
       }
     }
@@ -90,10 +97,13 @@ export class Balls {
       this.drawBall(this.touchPos[0], this.touchPos[1]);
     }
   }
-  private renderBallAnimate(ball: Ball, deltaTime: number) {
+  private renderExchangeAnimate(ball: Ball, deltaTime: number) {
     const radius = this.radius;
     const colIndex = ball.column;
     const rowIndex = ball.row;
+
+    world.ctx.globalAlpha = 1;
+
     if (!ball.animate) {
       this.drawBall(
         colIndex * radius * 2 + radius,
@@ -160,12 +170,35 @@ export class Balls {
         return index !== 1;
       });
 
-      // 处理touchend比珠子交换动画早出发的情况
+      // 处理touchend比珠子交换动画早触发的情况
       this.comboCheck();
 
       return;
     }
     ball.animate.update(deltaTime);
+  }
+  private renderRemoveAnimate(ball: Ball, deltaTime: number) {
+    const ctx = world.ctx;
+    const radius = this.radius;
+    const colIndex = ball.column;
+    const rowIndex = ball.row;
+    if (!ball.removeAnimate) {
+      return;
+    }
+    if (ball.removeAnimate.getIsCompleted()) {
+      const removed = this.removeList.shift();
+      if (removed) {
+        this.removedList = this.removedList.concat(removed);
+      }
+      return;
+    }
+    const [alpha] = ball.removeAnimate.getPos();
+    ctx.globalAlpha = alpha;
+    this.drawBall(
+      colIndex * radius * 2 + radius,
+      rowIndex * radius * 2 + radius
+    );
+    ball.removeAnimate.update(deltaTime);
   }
   private drawBall(x: number, y: number) {
     const ctx = world.ctx;
@@ -233,7 +266,7 @@ export class Balls {
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
   }
-  exchange() {
+  private exchange() {
     const ball1 = this.trail[0];
     const ball2 = this.trail[1];
     if (ball1.animate || ball2.animate) {
@@ -269,17 +302,21 @@ export class Balls {
         } else if (counter < 3) {
           counter = 1;
         } else {
+          const tmp = [];
           for (let i = 0; i < counter; i++) {
-            row[colIndex - i - 1].isComplete = true;
+            tmp.push(row[colIndex - i - 1]);
           }
+          this.addToRemoveList(tmp);
           counter = 1;
         }
         prev = row[colIndex];
       }
       if (counter >= 3) {
+        const tmp = [];
         for (let i = 0; i < counter; i++) {
-          row[row.length - 1 - i].isComplete = true;
+          tmp.push(row[row.length - 1 - i]);
         }
+        this.addToRemoveList(tmp);
       }
     }
   }
@@ -296,18 +333,22 @@ export class Balls {
         } else if (counter < 3) {
           counter = 1;
         } else {
+          const tmp = [];
           for (let i = 0; i < counter; i++) {
-            arr[rowIndex - i - 1][colIndex].isComplete = true;
+            tmp.push(arr[rowIndex - i - 1][colIndex]);
           }
+          this.addToRemoveList(tmp);
           counter = 1;
         }
         prev = arr[rowIndex][colIndex];
       }
 
       if (counter >= 3) {
+        const tmp = [];
         for (let i = 0; i < counter; i++) {
-          arr[arr.length - 1 - i][colIndex].isComplete = true;
+          tmp.push(arr[arr.length - 1 - i][colIndex]);
         }
+        this.addToRemoveList(tmp);
       }
     }
   }
@@ -330,5 +371,43 @@ export class Balls {
       return false;
     }
     return true;
+  }
+  private addToRemoveList(balls: Ball[]) {
+    const completed = balls.find((item) => {
+      return item.isComplete;
+    });
+
+    if (completed) {
+      // 珠子连成十字或者T型等横竖都有交叉的情况
+      this.removeList.forEach((list) => {
+        const ret = list.find((item) => {
+          return item === completed;
+        });
+        if (ret) {
+          balls.forEach((item) => {
+            if (item === ret) {
+              return;
+            }
+            item.isComplete = true;
+            item.removeAnimate = new AnimateLinear(
+              [1, 0],
+              [0, 0],
+              removeAnimateSpeed
+            );
+            list.push(item);
+          });
+        }
+      });
+      return;
+    }
+    balls.forEach((ball) => {
+      ball.isComplete = true;
+      ball.removeAnimate = new AnimateLinear(
+        [1, 0],
+        [0, 0],
+        removeAnimateSpeed
+      );
+    });
+    this.removeList.push(balls);
   }
 }
