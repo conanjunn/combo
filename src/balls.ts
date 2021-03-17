@@ -410,4 +410,15 @@ export class Balls {
     });
     this.removeList.push(balls);
   }
+  private getFallBall(): Ball[][] {
+    const fallCounter: number[] = [];
+    this.removedList.forEach((item) => {
+      if (fallCounter[item.column]) {
+        fallCounter[item.column]++;
+        return;
+      }
+      fallCounter[item.column] = 1;
+    });
+    return [];
+  }
 }
