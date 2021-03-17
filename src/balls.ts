@@ -1,6 +1,12 @@
 import { engine, Tick } from './engine';
 import { AnimateCurve, px, SeedRandom } from './utils';
-import { BallTypes, BallTypesOpacity, exchangeSpeed } from './values';
+import {
+  BallTypes,
+  BallTypesOpacity,
+  columnCount,
+  exchangeSpeed,
+  rowCount,
+} from './values';
 import { world } from './world';
 
 interface Ball {
@@ -23,9 +29,9 @@ export class Balls {
 
   constructor() {
     const random = new SeedRandom('abcd');
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < rowCount; index++) {
       this.arr.push([]);
-      for (let j = 0; j < 6; j++) {
+      for (let j = 0; j < columnCount; j++) {
         this.arr[index].push({
           type: random.random(0, 4),
           row: index,
@@ -173,13 +179,15 @@ export class Balls {
     canvas.addEventListener('touchstart', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      this.touchStatus = 'start';
-
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
-
       const colIndex = Math.floor(x / (this.radius * 2));
       const rowIndex = Math.floor(y / (this.radius * 2));
+      if (!this.isValidIndex(rowIndex, colIndex)) {
+        return;
+      }
+
+      this.touchStatus = 'start';
       this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
       this.userSelectedBall = this.arr[rowIndex][colIndex];
@@ -189,14 +197,16 @@ export class Balls {
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      this.touchStatus = 'move';
-
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
-      this.touchPos = [x, y];
-
       const colIndex = Math.floor(x / (this.radius * 2));
       const rowIndex = Math.floor(y / (this.radius * 2));
+      if (!this.isValidIndex(rowIndex, colIndex)) {
+        return;
+      }
+
+      this.touchPos = [x, y];
+      this.touchStatus = 'move';
       if (
         this.colliderIndex[0] !== rowIndex ||
         this.colliderIndex[1] !== colIndex
@@ -308,7 +318,17 @@ export class Balls {
     this.colliderIndex = [];
     this.touchPos = [];
     this.userSelectedBall = null;
+    this.trail = [];
     this.horizontalCheck();
     this.verticalCheck();
+  }
+  private isValidIndex(row: number, col: number) {
+    if (row < 0 || row > rowCount - 1) {
+      return false;
+    }
+    if (col < 0 || col > columnCount - 1) {
+      return false;
+    }
+    return true;
   }
 }

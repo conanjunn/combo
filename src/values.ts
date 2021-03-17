@@ -15,3 +15,6 @@ export const BallTypesOpacity: ReadonlyArray<string> = [
 ];
 
 export const exchangeSpeed: number = 0.05;
+
+export const rowCount: number = 5;
+export const columnCount: number = 6;
