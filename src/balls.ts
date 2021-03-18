@@ -36,6 +36,8 @@ export class Balls {
   private status: ballStatus = ballStatus.default;
   private removeList: Ball[][] = [];
   private removedList: Ball[] = [];
+  private extraList: Ball[][] = [];
+  private extraAnimateList: Ball[] = [];
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -116,8 +118,38 @@ export class Balls {
           let fallingCounter: number = 0;
           this.iterateAll((ball: Ball) => {
             this.renderFallAnimate(ball, deltaTime);
-            ball.fallAnimate && fallingCounter++;
+            ball.fallAnimate && fallingCounter++; // 这里是不是应该用isCompleted判断？
           });
+
+          if (!this.extraAnimateList.length) {
+            this.extraList.forEach((list: Ball[]) => {
+              if (!list || !list.length) {
+                return;
+              }
+              const ball = list.shift();
+              if (ball) {
+                ball.fallAnimate = new AnimateLinear(
+                  [0, 0],
+                  [this.radius * 2, 0],
+                  fallAnimateSpeed
+                );
+                this.extraAnimateList.push(ball);
+              }
+            });
+          }
+          this.extraAnimateList.forEach((ball: Ball) => {
+            if (ball.fallAnimate) {
+              if (ball.fallAnimate.getIsCompleted()) {
+                ball.fallAnimate = null;
+                ball.row = 0;
+                this.arr[0][ball.column] = ball;
+                this.extraAnimateList; //移除
+                return;
+              }
+              ball.fallAnimate?.update(deltaTime);
+            }
+          });
+
           if (!fallingCounter) {
             this.comboCheck();
           }
@@ -406,6 +438,8 @@ export class Balls {
     this.verticalCheck();
 
     if (this.removeList.length) {
+      this.extraList = this.createFallBall();
+
       this.status = ballStatus.remove;
       return;
     }
@@ -501,7 +535,7 @@ export class Balls {
       }
       fallBalls[item.column].push({
         type: random(0, 4),
-        row: -1,
+        row: (fallBalls[item.column].length + 1) * -1,
         column: item.column,
         isComplete: false,
         animate: null,
