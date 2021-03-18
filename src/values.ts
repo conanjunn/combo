@@ -28,4 +28,5 @@ export enum ballStatus {
   touchEnd,
   remove,
   fall,
+  disabled,
 }

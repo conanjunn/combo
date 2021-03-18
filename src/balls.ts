@@ -75,10 +75,6 @@ export class Balls {
     }
 
     switch (this.status) {
-      case ballStatus.default:
-        this.iterateAll(this.renderDefault.bind(this));
-        break;
-
       case ballStatus.touchStart:
       case ballStatus.touchMove:
       case ballStatus.touchEnd:
@@ -116,9 +112,16 @@ export class Balls {
         break;
 
       case ballStatus.fall:
-        this.iterateAll((ball: Ball) => {
-          this.renderFallAnimate(ball, deltaTime);
-        });
+        {
+          let fallingCounter: number = 0;
+          this.iterateAll((ball: Ball) => {
+            this.renderFallAnimate(ball, deltaTime);
+            ball.fallAnimate && fallingCounter++;
+          });
+          if (!fallingCounter) {
+            this.comboCheck();
+          }
+        }
         break;
 
       default:
@@ -239,6 +242,9 @@ export class Balls {
     canvas.addEventListener('touchstart', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      if (this.status === ballStatus.disabled) {
+        return;
+      }
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
       const colIndex = Math.floor(x / (this.radius * 2));
@@ -257,6 +263,9 @@ export class Balls {
     canvas.addEventListener('touchmove', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      if (this.status === ballStatus.disabled) {
+        return;
+      }
       const x: number = e.touches[0].pageX;
       const y: number = e.touches[0].pageY;
       const colIndex = Math.floor(x / (this.radius * 2));
@@ -285,6 +294,9 @@ export class Balls {
     const endEventHandler = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      if (this.status === ballStatus.disabled) {
+        return;
+      }
 
       this.status = ballStatus.touchEnd;
 
@@ -380,7 +392,10 @@ export class Balls {
     }
   }
   private comboCheck() {
-    if (this.status !== ballStatus.touchEnd || this.trail.length > 1) {
+    if (
+      [ballStatus.touchEnd, ballStatus.fall].indexOf(this.status) === -1 ||
+      this.trail.length > 1
+    ) {
       return;
     }
     this.colliderIndex = [];
@@ -390,7 +405,11 @@ export class Balls {
     this.horizontalCheck();
     this.verticalCheck();
 
-    this.status = ballStatus.remove;
+    if (this.removeList.length) {
+      this.status = ballStatus.remove;
+      return;
+    }
+    this.status = ballStatus.disabled;
   }
   private isValidIndex(row: number, col: number) {
     if (row < 0 || row > rowCount - 1) {
