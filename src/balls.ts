@@ -1,5 +1,7 @@
 import { engine, Tick } from './engine';
-import { AnimateCurve, AnimateLinear, px, SeedRandom } from './utils';
+import { AnimateCurve, AnimateLinear } from './utils/animate';
+import { px } from './utils/unit';
+import { SeedRandom } from './utils/random';
 import {
   BallTypes,
   BallTypesOpacity,

@@ -1,4 +1,4 @@
-import { px } from './utils';
+import { px } from './utils/unit';
 
 export class World {
   constructor() {
