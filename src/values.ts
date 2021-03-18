@@ -16,6 +16,16 @@ export const BallTypesOpacity: ReadonlyArray<string> = [
 
 export const exchangeSpeed: number = 0.08;
 export const removeAnimateSpeed: number = 0.2;
+export const fallAnimateSpeed: number = 0.1;
 
 export const rowCount: number = 5;
 export const columnCount: number = 6;
+
+export enum ballStatus {
+  default,
+  touchStart,
+  touchMove,
+  touchEnd,
+  remove,
+  fall,
+}

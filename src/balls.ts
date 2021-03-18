@@ -2,11 +2,14 @@ import { engine, Tick } from './engine';
 import { AnimateCurve, AnimateLinear } from './utils/animate';
 import { px } from './utils/unit';
 import { SeedRandom } from './utils/random';
+import { random } from './utils/random';
 import {
+  ballStatus,
   BallTypes,
   BallTypesOpacity,
   columnCount,
   exchangeSpeed,
+  fallAnimateSpeed,
   removeAnimateSpeed,
   rowCount,
 } from './values';
@@ -19,6 +22,7 @@ interface Ball {
   isComplete: boolean;
   animate: AnimateCurve | null;
   removeAnimate: AnimateLinear | null;
+  fallAnimate: AnimateLinear | null;
 }
 
 export class Balls {
@@ -29,7 +33,7 @@ export class Balls {
   private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
   private trail: Ball[] = [];
-  private touchStatus: string = ''; // start move end
+  private status: ballStatus = ballStatus.default;
   private removeList: Ball[][] = [];
   private removedList: Ball[] = [];
 
@@ -45,6 +49,7 @@ export class Balls {
           isComplete: false,
           animate: null,
           removeAnimate: null,
+          fallAnimate: null,
         });
       }
     }
@@ -59,58 +64,86 @@ export class Balls {
   }
   private render(deltaTime: number) {
     const ctx = world.ctx;
-    const arr = this.arr;
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'white';
     ctx.font = `${px.toPx(30)}px serif`;
 
-    // 判断是否有需要交换位置的珠子
+    // 判断是否有需要添加交换位置的珠子的动画
     if (this.trail.length > 1) {
-      this.exchange();
+      this.addExchangeAnimate();
     }
 
-    for (let rowIndex = 0; rowIndex < arr.length; rowIndex++) {
-      for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
-        const ball = arr[rowIndex][colIndex];
-        ctx.fillStyle = BallTypes[ball.type];
-        if (this.userSelectedBall == ball) {
-          ctx.fillStyle = BallTypesOpacity[ball.type];
-        }
+    switch (this.status) {
+      case ballStatus.default:
+        this.iterateAll(this.renderDefault.bind(this));
+        break;
 
-        if (!ball.isComplete) {
+      case ballStatus.touchStart:
+      case ballStatus.touchMove:
+      case ballStatus.touchEnd:
+        this.iterateAll((ball: Ball) => {
+          if (this.userSelectedBall == ball) {
+            ctx.fillStyle = BallTypesOpacity[ball.type];
+          }
           this.renderExchangeAnimate(ball, deltaTime);
-        } else if (
-          this.removeList[0] &&
-          this.removeList[0].indexOf(ball) !== -1
-        ) {
-          // 这个珠子需要做消失的动画
-          this.renderRemoveAnimate(ball, deltaTime);
-        } else if (this.removedList.indexOf(ball) === -1) {
-          // 这个珠子需要做消失的动画，但目前还没轮到它，所以正常绘制
-          this.renderExchangeAnimate(ball, deltaTime);
-        }
-      }
-    }
+          // 绘制跟随手指移动的球
+          if (this.touchPos.length && this.userSelectedBall) {
+            ctx.fillStyle = BallTypesOpacity[this.userSelectedBall.type];
+            this.drawBall(this.touchPos[0], this.touchPos[1]);
+          }
+        });
+        break;
 
-    // 绘制跟随手指移动的球
-    if (this.touchPos.length && this.userSelectedBall) {
-      ctx.fillStyle = BallTypesOpacity[this.userSelectedBall.type];
-      this.drawBall(this.touchPos[0], this.touchPos[1]);
+      case ballStatus.remove:
+        this.iterateAll((ball: Ball) => {
+          if (!ball.isComplete) {
+            this.renderDefault(ball);
+          } else if (
+            this.removeList[0] &&
+            this.removeList[0].indexOf(ball) !== -1
+          ) {
+            // 这个珠子需要做消失的动画
+            this.renderRemoveAnimate(ball, deltaTime);
+          } else if (this.removedList.indexOf(ball) === -1) {
+            // 这个珠子需要做消失的动画，但目前还没轮到它，所以正常绘制
+            this.renderDefault(ball);
+          } else if (!this.removeList.length) {
+            // 最后一组消除动画已经结束
+            this.status = ballStatus.fall;
+          }
+        });
+        break;
+
+      case ballStatus.fall:
+        this.iterateAll((ball: Ball) => {
+          this.renderFallAnimate(ball, deltaTime);
+        });
+        break;
+
+      default:
+        this.iterateAll(this.renderDefault.bind(this));
+        break;
     }
+  }
+  private renderDefault(ball: Ball) {
+    world.ctx.globalAlpha = 1;
+    const radius = this.radius;
+    const colIndex = ball.column;
+    const rowIndex = ball.row;
+    this.drawBall(
+      colIndex * radius * 2 + radius,
+      rowIndex * radius * 2 + radius
+    );
   }
   private renderExchangeAnimate(ball: Ball, deltaTime: number) {
     const radius = this.radius;
     const colIndex = ball.column;
     const rowIndex = ball.row;
-
     world.ctx.globalAlpha = 1;
 
     if (!ball.animate) {
-      this.drawBall(
-        colIndex * radius * 2 + radius,
-        rowIndex * radius * 2 + radius
-      );
+      this.renderDefault(ball);
       return;
     }
 
@@ -150,21 +183,13 @@ export class Balls {
     }
 
     if (ball.animate.getIsCompleted()) {
-      // 动画已结束,交换源数组里的两个球的位置
       const ball1 = this.trail[0];
       const ball2 = this.trail[1];
-      this.arr[ball1.row][ball1.column] = ball2;
-      this.arr[ball2.row][ball2.column] = ball1;
 
-      const backupBall1: Ball = { ...ball1 };
-
-      ball1.row = ball2.row;
-      ball1.column = ball2.column;
       ball1.animate = null;
-
-      ball2.row = backupBall1.row;
-      ball2.column = backupBall1.column;
       ball2.animate = null;
+      // 动画已结束,交换源数组里的两个球的位置
+      this.exchange(ball1, ball2);
 
       this.colliderIndex = [ball1.row, ball1.column];
 
@@ -222,7 +247,7 @@ export class Balls {
         return;
       }
 
-      this.touchStatus = 'start';
+      this.status = ballStatus.touchStart;
       this.colliderIndex = [rowIndex, colIndex];
       this.touchPos = [x, y];
       this.userSelectedBall = this.arr[rowIndex][colIndex];
@@ -241,7 +266,7 @@ export class Balls {
       }
 
       this.touchPos = [x, y];
-      this.touchStatus = 'move';
+      this.status = ballStatus.touchMove;
       if (
         this.colliderIndex[0] !== rowIndex ||
         this.colliderIndex[1] !== colIndex
@@ -261,14 +286,14 @@ export class Balls {
       e.stopPropagation();
       e.preventDefault();
 
-      this.touchStatus = 'end';
+      this.status = ballStatus.touchEnd;
 
       this.comboCheck();
     };
     canvas.addEventListener('touchend', endEventHandler);
     canvas.addEventListener('touchcancel', endEventHandler);
   }
-  private exchange() {
+  private addExchangeAnimate() {
     const ball1 = this.trail[0];
     const ball2 = this.trail[1];
     if (ball1.animate || ball2.animate) {
@@ -355,7 +380,7 @@ export class Balls {
     }
   }
   private comboCheck() {
-    if (this.touchStatus !== 'end' || this.trail.length > 1) {
+    if (this.status !== ballStatus.touchEnd || this.trail.length > 1) {
       return;
     }
     this.colliderIndex = [];
@@ -364,6 +389,8 @@ export class Balls {
     this.trail = [];
     this.horizontalCheck();
     this.verticalCheck();
+
+    this.status = ballStatus.remove;
   }
   private isValidIndex(row: number, col: number) {
     if (row < 0 || row > rowCount - 1) {
@@ -412,15 +439,80 @@ export class Balls {
     });
     this.removeList.push(balls);
   }
-  private getFallBall(): Ball[][] {
-    const fallCounter: number[] = [];
+  private renderFallAnimate(ball: Ball, deltaTime: number) {
+    if (ball.isComplete) {
+      return;
+    }
+    if (ball.row >= rowCount - 1) {
+      this.renderDefault(ball);
+      return;
+    }
+    const bottomBall = this.arr[ball.row + 1][ball.column];
+    if (!bottomBall.isComplete && !bottomBall.fallAnimate) {
+      // 下面的珠子没有被消除，也没有做下落动画
+      this.renderDefault(ball);
+      return;
+    }
+    if (!ball.fallAnimate) {
+      ball.fallAnimate = new AnimateLinear(
+        [0, 0],
+        [this.radius * 2, 0],
+        fallAnimateSpeed
+      );
+    }
+    if (ball.fallAnimate.getIsCompleted()) {
+      // 动画结束后交换上下球的位置信息，重新递归检测是否需要继续下落
+      ball.fallAnimate = null;
+      this.exchange(ball, bottomBall);
+      this.renderFallAnimate(ball, deltaTime);
+      return;
+    }
+    const [deltaY] = ball.fallAnimate.getPos();
+    this.drawBall(
+      ball.column * this.radius * 2 + this.radius,
+      deltaY + (ball.row * this.radius * 2 + this.radius)
+    );
+    ball.fallAnimate.update(deltaTime);
+  }
+  private createFallBall(): Ball[][] {
+    const fallBalls: Ball[][] = [];
     this.removedList.forEach((item) => {
-      if (fallCounter[item.column]) {
-        fallCounter[item.column]++;
-        return;
+      if (!fallBalls[item.column]) {
+        fallBalls[item.column] = [];
       }
-      fallCounter[item.column] = 1;
+      fallBalls[item.column].push({
+        type: random(0, 4),
+        row: -1,
+        column: item.column,
+        isComplete: false,
+        animate: null,
+        removeAnimate: null,
+        fallAnimate: new AnimateLinear([0, 0], [this.radius * 2, 0], 0.5),
+      });
     });
-    return [];
+    return fallBalls;
+  }
+  private iterateAll(callback: { (ball: Ball): void }) {
+    const arr = this.arr;
+    const ctx = world.ctx;
+    for (let rowIndex = arr.length - 1; rowIndex >= 0; rowIndex--) {
+      for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
+        const ball = arr[rowIndex][colIndex];
+        ctx.fillStyle = BallTypes[ball.type];
+        callback(ball);
+      }
+    }
+  }
+  private exchange(ball1: Ball, ball2: Ball) {
+    this.arr[ball1.row][ball1.column] = ball2;
+    this.arr[ball2.row][ball2.column] = ball1;
+
+    const backupBall1: Ball = { ...ball1 };
+
+    ball1.row = ball2.row;
+    ball1.column = ball2.column;
+
+    ball2.row = backupBall1.row;
+    ball2.column = backupBall1.column;
   }
 }
