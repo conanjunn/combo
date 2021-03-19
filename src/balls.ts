@@ -38,6 +38,7 @@ export class Balls {
   private removedList: Ball[] = [];
   private extraList: Ball[][] = [];
   private extraAnimateList: Ball[] = [];
+  private containerY: number = px.toPx(300);
 
   constructor() {
     const random = new SeedRandom('abcd');
@@ -106,11 +107,14 @@ export class Balls {
           } else if (this.removedList.indexOf(ball) === -1) {
             // 这个珠子需要做消失的动画，但目前还没轮到它，所以正常绘制
             this.renderDefault(ball);
-          } else if (!this.removeList.length) {
-            // 最后一组消除动画已经结束
-            this.status = ballStatus.fall;
           }
         });
+        if (!this.removeList.length) {
+          // 最后一组消除动画已经结束
+          this.extraList = this.createFallBall();
+
+          this.status = ballStatus.fall;
+        }
         break;
 
       case ballStatus.fall:
@@ -118,7 +122,7 @@ export class Balls {
           let fallingCounter: number = 0;
           this.iterateAll((ball: Ball) => {
             this.renderFallAnimate(ball, deltaTime);
-            ball.fallAnimate && fallingCounter++; // 这里是不是应该用isCompleted判断？
+            ball.isComplete && fallingCounter++; // 这里是不是应该用isCompleted判断？
           });
 
           if (!this.extraAnimateList.length) {
@@ -137,18 +141,32 @@ export class Balls {
               }
             });
           }
+          let isCompleted = false;
           this.extraAnimateList.forEach((ball: Ball) => {
+            const radius = this.radius;
+            const colIndex = ball.column;
+
             if (ball.fallAnimate) {
+              ctx.fillStyle = BallTypes[ball.type];
+              this.drawBall(
+                colIndex * radius * 2 + radius,
+                ball.fallAnimate.getPos()[0] + this.radius * -1
+              );
+
               if (ball.fallAnimate.getIsCompleted()) {
                 ball.fallAnimate = null;
                 ball.row = 0;
                 this.arr[0][ball.column] = ball;
-                this.extraAnimateList; //移除
+                isCompleted = true;
                 return;
               }
-              ball.fallAnimate?.update(deltaTime);
+              ball.fallAnimate.update(deltaTime);
             }
           });
+
+          if (isCompleted) {
+            this.extraAnimateList = [];
+          }
 
           if (!fallingCounter) {
             this.comboCheck();
@@ -265,7 +283,7 @@ export class Balls {
   private drawBall(x: number, y: number) {
     const ctx = world.ctx;
     ctx.beginPath();
-    ctx.arc(x, y, this.radius, 0, 2 * Math.PI);
+    ctx.arc(x, y + this.containerY, this.radius, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
   }
@@ -278,7 +296,7 @@ export class Balls {
         return;
       }
       const x: number = e.touches[0].pageX;
-      const y: number = e.touches[0].pageY;
+      const y: number = e.touches[0].pageY - this.containerY;
       const colIndex = Math.floor(x / (this.radius * 2));
       const rowIndex = Math.floor(y / (this.radius * 2));
       if (!this.isValidIndex(rowIndex, colIndex)) {
@@ -299,7 +317,7 @@ export class Balls {
         return;
       }
       const x: number = e.touches[0].pageX;
-      const y: number = e.touches[0].pageY;
+      const y: number = e.touches[0].pageY - this.containerY;
       const colIndex = Math.floor(x / (this.radius * 2));
       const rowIndex = Math.floor(y / (this.radius * 2));
       if (!this.isValidIndex(rowIndex, colIndex)) {
@@ -438,8 +456,6 @@ export class Balls {
     this.verticalCheck();
 
     if (this.removeList.length) {
-      this.extraList = this.createFallBall();
-
       this.status = ballStatus.remove;
       return;
     }
@@ -540,9 +556,14 @@ export class Balls {
         isComplete: false,
         animate: null,
         removeAnimate: null,
-        fallAnimate: new AnimateLinear([0, 0], [this.radius * 2, 0], 0.5),
+        fallAnimate: new AnimateLinear(
+          [0, 0],
+          [this.radius * 2, 0],
+          fallAnimateSpeed
+        ),
       });
     });
+    this.removedList = [];
     return fallBalls;
   }
   private iterateAll(callback: { (ball: Ball): void }) {
