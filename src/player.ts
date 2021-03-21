@@ -5,7 +5,8 @@ import { World } from './world';
 
 export class Player {
   private balls: Balls;
-  private attackAmount: number[] = [];
+  private attackCounter: number[] = [];
+  private comboCounter: number = 0;
   private event: EventEmitter;
   constructor(world: World, balls: Balls) {
     this.balls = balls;
@@ -15,16 +16,17 @@ export class Player {
   }
   private add() {
     const removeList = this.balls.getRemoveList();
+    this.comboCounter += removeList.length;
     removeList.forEach((list) => {
       list.forEach((item) => {
-        if (!this.attackAmount[item.type]) {
-          this.attackAmount[item.type] = 0;
+        if (!this.attackCounter[item.type]) {
+          this.attackCounter[item.type] = 0;
         }
-        this.attackAmount[item.type] += 1;
+        this.attackCounter[item.type] += 1;
       });
     });
   }
   private settle() {
-    console.log(this.attackAmount);
+    console.log(this.attackCounter, this.comboCounter);
   }
 }
