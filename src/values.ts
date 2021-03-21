@@ -30,3 +30,9 @@ export const enum ballStatus {
   fall,
   disabled,
 }
+
+export enum eventType {
+  init = 'init',
+  remove = 'remove',
+  disabled = 'disabled',
+}

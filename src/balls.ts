@@ -7,6 +7,7 @@ import {
   BallTypes,
   BallTypesOpacity,
   columnCount,
+  eventType,
   exchangeSpeed,
   fallAnimateSpeed,
   removeAnimateSpeed,
@@ -25,13 +26,7 @@ interface Ball {
   fallAnimate: AnimateLinear | null;
 }
 
-enum eventType {
-  init = 'init',
-  remove = 'remove',
-}
-
 export class Balls {
-  static eventType = eventType;
   private world: World;
   private arr: Ball[][] = [];
   private colliderIndex: number[] = [];
@@ -48,10 +43,11 @@ export class Balls {
     window.document.documentElement.clientHeight -
     this.radius * 2 * rowCount -
     px.toPx(50);
-  readonly event: Readonly<EventEmitter> = new EventEmitter();
+  private event: EventEmitter;
 
   constructor(world: World) {
     this.world = world;
+    this.event = world.event;
 
     this.initBalls();
     this.touchEvent();
@@ -470,10 +466,11 @@ export class Balls {
 
     if (this.removeList.length) {
       this.status = ballStatus.remove;
-      this.event.emit(Balls.eventType.remove);
+      this.event.emit(eventType.remove);
       return;
     }
     this.status = ballStatus.disabled;
+    this.event.emit(eventType.disabled);
   }
   private isValidIndex(row: number, col: number) {
     if (row < 0 || row > rowCount - 1) {
