@@ -1,4 +1,3 @@
-import { engine, Tick } from './engine';
 import { AnimateCurve, AnimateLinear } from './utils/animate';
 import { px } from './utils/unit';
 import { SeedRandom } from './utils/random';
@@ -13,7 +12,8 @@ import {
   removeAnimateSpeed,
   rowCount,
 } from './values';
-import { world } from './world';
+import { World } from './world';
+import EventEmitter from 'eventemitter3';
 
 interface Ball {
   type: number;
@@ -25,12 +25,18 @@ interface Ball {
   fallAnimate: AnimateLinear | null;
 }
 
+enum eventType {
+  init = 'init',
+  remove = 'remove',
+}
+
 export class Balls {
+  static eventType = eventType;
+  private world: World;
   private arr: Ball[][] = [];
   private colliderIndex: number[] = [];
   private touchPos: number[] = [];
   private radius: number = px.toPx(750 / columnCount / 2);
-  private renderFn: Tick;
   private userSelectedBall: Ball | null = null;
   private trail: Ball[] = [];
   private status: ballStatus = ballStatus.default;
@@ -38,9 +44,24 @@ export class Balls {
   private removedList: Ball[] = [];
   private extraList: Ball[][] = [];
   private extraAnimateList: Ball[] = [];
-  private containerY: number = px.toPx(300);
+  private containerY: number =
+    window.document.documentElement.clientHeight -
+    this.radius * 2 * rowCount -
+    px.toPx(50);
+  readonly event: Readonly<EventEmitter> = new EventEmitter();
 
-  constructor() {
+  constructor(world: World) {
+    this.world = world;
+
+    this.initBalls();
+    this.touchEvent();
+
+    this.world.engine.addTick(this.render.bind(this));
+
+    const ctx = world.ctx;
+    ctx.strokeStyle = 'red';
+  }
+  private initBalls() {
     const random = new SeedRandom('abcd');
     for (let index = 0; index < rowCount; index++) {
       this.arr.push([]);
@@ -56,17 +77,9 @@ export class Balls {
         });
       }
     }
-
-    this.event();
-    this.renderFn = this.render.bind(this);
-
-    engine.addTick(this.renderFn);
-
-    const ctx = world.ctx;
-    ctx.strokeStyle = 'red';
   }
   private render(deltaTime: number) {
-    const ctx = world.ctx;
+    const ctx = this.world.ctx;
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'white';
@@ -180,7 +193,7 @@ export class Balls {
     }
   }
   private renderDefault(ball: Ball) {
-    world.ctx.globalAlpha = 1;
+    this.world.ctx.globalAlpha = 1;
     const radius = this.radius;
     const colIndex = ball.column;
     const rowIndex = ball.row;
@@ -193,7 +206,7 @@ export class Balls {
     const radius = this.radius;
     const colIndex = ball.column;
     const rowIndex = ball.row;
-    world.ctx.globalAlpha = 1;
+    this.world.ctx.globalAlpha = 1;
 
     if (!ball.animate) {
       this.renderDefault(ball);
@@ -258,7 +271,7 @@ export class Balls {
     ball.animate.update(deltaTime);
   }
   private renderRemoveAnimate(ball: Ball, deltaTime: number) {
-    const ctx = world.ctx;
+    const ctx = this.world.ctx;
     const radius = this.radius;
     const colIndex = ball.column;
     const rowIndex = ball.row;
@@ -281,14 +294,14 @@ export class Balls {
     ball.removeAnimate.update(deltaTime);
   }
   private drawBall(x: number, y: number) {
-    const ctx = world.ctx;
+    const ctx = this.world.ctx;
     ctx.beginPath();
     ctx.arc(x, y + this.containerY, this.radius, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
   }
-  private event() {
-    const canvas = world.canvas;
+  private touchEvent() {
+    const canvas = this.world.canvas;
     canvas.addEventListener('touchstart', (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
@@ -457,6 +470,7 @@ export class Balls {
 
     if (this.removeList.length) {
       this.status = ballStatus.remove;
+      this.event.emit(Balls.eventType.remove);
       return;
     }
     this.status = ballStatus.disabled;
@@ -568,7 +582,7 @@ export class Balls {
   }
   private iterateAll(callback: { (ball: Ball): void }) {
     const arr = this.arr;
-    const ctx = world.ctx;
+    const ctx = this.world.ctx;
     for (let rowIndex = arr.length - 1; rowIndex >= 0; rowIndex--) {
       for (let colIndex = 0; colIndex < arr[rowIndex].length; colIndex++) {
         const ball = arr[rowIndex][colIndex];
@@ -588,5 +602,8 @@ export class Balls {
 
     ball2.row = backupBall1.row;
     ball2.column = backupBall1.column;
+  }
+  getRemoveList(): Readonly<Ball[][]> {
+    return this.removeList;
   }
 }

@@ -1,5 +1,4 @@
-import { Balls } from './balls';
-import { engine } from './engine';
+import { World } from './world';
 
-new Balls();
-engine.runner();
+const world = new World();
+world.engine.runner();

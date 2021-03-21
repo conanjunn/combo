@@ -1,13 +1,17 @@
-import { world } from './world';
+import { World } from './world';
 
 export type Tick = { (deltaTime: number): void };
 
 export class Engine {
-  constructor() {}
+  private world: World;
+  constructor(world: World) {
+    this.world = world;
+  }
   private ticks: Tick[] = [];
   private prevTime: number = 0;
   runner() {
     requestAnimationFrame((time: number) => {
+      const world = this.world;
       world.ctx.clearRect(0, 0, world.canvas.width, world.canvas.height);
 
       const deltaTime = (time - this.prevTime) / 1000;
@@ -27,5 +31,3 @@ export class Engine {
     });
   }
 }
-
-export const engine = new Engine();

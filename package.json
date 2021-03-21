@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@types/seedrandom": "^2.4.28",
+    "eventemitter3": "^4.0.7",
     "seedrandom": "^3.0.5"
   }
 }

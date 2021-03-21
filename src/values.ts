@@ -21,7 +21,7 @@ export const fallAnimateSpeed: number = 0.1;
 export const rowCount: number = 5;
 export const columnCount: number = 6;
 
-export enum ballStatus {
+export const enum ballStatus {
   default,
   touchStart,
   touchMove,
